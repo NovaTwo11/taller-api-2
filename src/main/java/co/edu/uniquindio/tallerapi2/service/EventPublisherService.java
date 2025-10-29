@@ -58,7 +58,7 @@ public class EventPublisherService {
     public void publishPasswordResetSolicitado(PasswordResetSolicitadoEvent event) {
         rabbitTemplate.convertAndSend(
                 properties.getExchange(),
-                properties.getPassword().getRoutingKey(),   // ✅ password.reset.requested
+                "password.reset.requested",   // 🔥 NUEVA routing key
                 event
         );
     }
@@ -69,7 +69,7 @@ public class EventPublisherService {
     public void publishPasswordActualizado(PasswordActualizadoEvent event) {
         rabbitTemplate.convertAndSend(
                 properties.getExchange(),
-                properties.getPassword().getRoutingKey(),   // ✅ password.updated
+                "password.updated",   // 🔥 NUEVA routing key
                 event
         );
     }
