@@ -1,0 +1,60 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <!-- Mirrors para evitar fallas TLS con repo.maven.apache.org.
+         Mantenemos el mirror HTTPS oficial y un backup HTTP. -->
+    <mirrors>
+        <mirror>
+            <id>central-https</id>
+            <name>Maven Central via HTTPS</name>
+            <url>https://repo1.maven.org/maven2/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>central-http-backup</id>
+            <name>Maven Central via HTTP backup</name>
+            <url>http://repo1.maven.org/maven2/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+
+    <!-- Si tu red usa proxy corporativo, descomenta y completa:
+    <proxies>
+      <proxy>
+        <id>corp-proxy</id>
+        <active>true</active>
+        <protocol>http</protocol>
+        <host>proxy.host.local</host>
+        <port>8080</port>
+        <nonProxyHosts>localhost|127.0.0.1|*.local|host.docker.internal</nonProxyHosts>
+      </proxy>
+    </proxies>
+    -->
+
+    <profiles>
+        <profile>
+            <id>central-profile</id>
+            <repositories>
+                <repository>
+                    <id>central</id>
+                    <url>https://repo1.maven.org/maven2/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </repository>
+            </repositories>
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>central</id>
+                    <url>https://repo1.maven.org/maven2/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>central-profile</activeProfile>
+    </activeProfiles>
+</settings>
