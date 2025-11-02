@@ -172,11 +172,13 @@
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
         </dependency>
+        <!-- COMENTADO: AspectJ tools causa conflictos con Spring Boot 3.5.5 y Java 17
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjtools</artifactId>
             <version>1.9.22.1</version>
         </dependency>
+        -->
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -258,6 +260,8 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- COMENTADO: AspectJ Maven Plugin causa conflictos con Spring Boot 3.5.5
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>aspectj-maven-plugin</artifactId>
@@ -270,7 +274,6 @@
                     <verbose>false</verbose>
                     <Xlint>ignore</Xlint>
                     <encoding>UTF-8</encoding>
-                    <!-- Deshabilitar el procesamiento de anotaciones -->
                     <proc>none</proc>
                     <aspectLibraries>
                         <aspectLibrary>
@@ -282,9 +285,6 @@
                         <exclude>**/org/springframework/boot/jdbc/**</exclude>
                         <exclude>**/org/springframework/boot/autoconfigure/**</exclude>
                     </excludes>
-                    <proc>none</proc>
-                    <showWeaveInfo>true</showWeaveInfo>
-                    <Xlint>ignore</Xlint>
                 </configuration>
                 <executions>
                     <execution>
@@ -302,6 +302,8 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            -->
+
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
                 <artifactId>native-maven-plugin</artifactId>
