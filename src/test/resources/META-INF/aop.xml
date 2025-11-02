@@ -1,0 +1,18 @@
+<!DOCTYPE aspectj PUBLIC "-//AspectJ//DTD//EN" "https://www.eclipse.org/aspectj/dtd/aspectj.dtd">
+<aspectj>
+    <weaver options="-verbose -showWeaveInfo">
+        <!-- Excluir clases de Spring Boot que causan problemas -->
+        <exclude within="org.springframework.boot.jdbc..*"/>
+        <exclude within="org.springframework.boot.autoconfigure..*"/>
+        <exclude within="org.springframework..*"/>
+
+        <!-- Incluir solo tus paquetes para Allure -->
+        <include within="co.edu.uniquindio.tallerapi2..*"/>
+    </weaver>
+
+    <aspects>
+        <!-- Aspectos de Allure -->
+        <aspect name="io.qameta.allure.aspects.AttachmentsAspects"/>
+        <aspect name="io.qameta.allure.aspects.StepsAspects"/>
+    </aspects>
+</aspectj>
