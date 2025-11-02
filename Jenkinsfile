@@ -1,24 +1,29 @@
 pipeline {
   agent any
+
   environment {
     JAVA_HOME = tool name: 'JDK17', type: 'jdk'
-    PATH = "${JAVA_HOME}/bin:${env.PATH}"
     MAVEN_HOME = tool name: 'Maven3', type: 'maven'
     M2_HOME = "${MAVEN_HOME}"
-    PATH = "${MAVEN_HOME}/bin:${env.PATH}"
+    PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
     SPRING_PROFILES_ACTIVE = 'test'
   }
+
   options {
     timestamps()
     ansiColor('xterm')
     buildDiscarder(logRotator(numToKeepStr: '20'))
   }
+
   stages {
     stage('Checkout') {
       steps { checkout scm }
     }
+
     stage('Build & Unit Tests') {
-      steps { sh 'mvn -B -U -DskipTests=false clean verify' }
+      steps {
+        sh 'mvn -B -U -DskipTests=false clean verify'
+      }
       post {
         always {
           junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
@@ -26,6 +31,7 @@ pipeline {
         }
       }
     }
+
     stage('SonarQube Analysis') {
       environment {
         SONAR_HOST_URL = 'http://localhost:9000' // o http://sonarqube:9000 si Jenkins está dentro del compose
@@ -42,6 +48,7 @@ pipeline {
         }
       }
     }
+
     stage('Quality Gate') {
       steps {
         timeout(time: 5, unit: 'MINUTES') {
