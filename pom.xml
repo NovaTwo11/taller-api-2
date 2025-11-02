@@ -188,7 +188,6 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            <!-- 👆 -->
             <plugin>
                 <groupId>io.github.deweyjose</groupId>
                 <artifactId>graphqlcodegen-maven-plugin</artifactId>
@@ -200,6 +199,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
+                            <skip>true</skip>
                             <schemaPaths>
                                 <param>src/main/resources/graphql-client</param>
                             </schemaPaths>
