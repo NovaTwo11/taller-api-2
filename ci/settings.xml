@@ -2,24 +2,29 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
 
-    <!-- Mirrors para evitar fallas TLS con repo.maven.apache.org.
-         Mantenemos el mirror HTTPS oficial y un backup HTTP. -->
+    <!-- Mirrors múltiples: repo1, http backup y Google mirror -->
     <mirrors>
         <mirror>
-            <id>central-https</id>
-            <name>Maven Central via HTTPS</name>
+            <id>central-repo1-https</id>
+            <name>Maven Central (repo1) HTTPS</name>
             <url>https://repo1.maven.org/maven2/</url>
             <mirrorOf>central</mirrorOf>
         </mirror>
         <mirror>
-            <id>central-http-backup</id>
-            <name>Maven Central via HTTP backup</name>
+            <id>central-repo1-http</id>
+            <name>Maven Central (repo1) HTTP backup</name>
             <url>http://repo1.maven.org/maven2/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>google-maven-central</id>
+            <name>Google Maven mirror</name>
+            <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
             <mirrorOf>central</mirrorOf>
         </mirror>
     </mirrors>
 
-    <!-- Si tu red usa proxy corporativo, descomenta y completa:
+    <!-- Descomenta si tu red usa proxy
     <proxies>
       <proxy>
         <id>corp-proxy</id>
@@ -27,7 +32,9 @@
         <protocol>http</protocol>
         <host>proxy.host.local</host>
         <port>8080</port>
-        <nonProxyHosts>localhost|127.0.0.1|*.local|host.docker.internal</nonProxyHosts>
+        <username></username>
+        <password></password>
+        <nonProxyHosts>localhost|127.0.0.1|*.local|host.docker.internal|sonarqube|jenkins</nonProxyHosts>
       </proxy>
     </proxies>
     -->
@@ -35,10 +42,21 @@
     <profiles>
         <profile>
             <id>central-profile</id>
+            <properties>
+                <!-- Timeouts y reintentos más altos -->
+                <aether.connector.requestTimeout>60000</aether.connector.requestTimeout>
+                <aether.connector.timeout>120000</aether.connector.timeout>
+            </properties>
             <repositories>
                 <repository>
                     <id>central</id>
                     <url>https://repo1.maven.org/maven2/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </repository>
+                <repository>
+                    <id>google-mirror</id>
+                    <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
                     <releases><enabled>true</enabled></releases>
                     <snapshots><enabled>false</enabled></snapshots>
                 </repository>
@@ -47,6 +65,12 @@
                 <pluginRepository>
                     <id>central</id>
                     <url>https://repo1.maven.org/maven2/</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>false</enabled></snapshots>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>google-mirror</id>
+                    <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
                     <releases><enabled>true</enabled></releases>
                     <snapshots><enabled>false</enabled></snapshots>
                 </pluginRepository>
