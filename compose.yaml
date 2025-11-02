@@ -101,9 +101,9 @@ services:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
     volumes:
       - jenkins_home:/var/jenkins_home
-      # Da a Jenkins la capacidad de ejecutar docker del host (opcional pero útil)
       - /var/run/docker.sock:/var/run/docker.sock
-      # En Windows/Mac con Docker Desktop, el socket puede no aplicar; puedes omitir esta línea.
+      # Montar el workspace para que Allure pueda acceder a los reportes
+      - ./jenkins-workspace:/var/jenkins_home/workspace
     networks:
       - ci_net
     restart: unless-stopped
@@ -121,7 +121,6 @@ services:
       SONAR_JDBC_URL: jdbc:postgresql://sonardb:5432/sonar
       SONAR_JDBC_USERNAME: sonar
       SONAR_JDBC_PASSWORD: sonar
-      # Opcional: ajustar heap si tu máquina es limitada
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
     ports:
       - "9000:9000"
@@ -130,13 +129,18 @@ services:
       - sonar_extensions:/opt/sonarqube/extensions
       - sonar_logs:/opt/sonarqube/logs
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- localhost:9000/ | grep -q 'SonarQube' || exit 1"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 10s
       retries: 30
+      start_period: 60s
     networks:
       - ci_net
     restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 
   sonardb:
     image: postgres:13
