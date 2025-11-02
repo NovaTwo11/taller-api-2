@@ -270,16 +270,14 @@
                     <verbose>false</verbose>
                     <Xlint>ignore</Xlint>
                     <encoding>UTF-8</encoding>
+                    <!-- Deshabilitar el procesamiento de anotaciones -->
+                    <proc>none</proc>
                     <aspectLibraries>
                         <aspectLibrary>
                             <groupId>org.springframework</groupId>
                             <artifactId>spring-aspects</artifactId>
                         </aspectLibrary>
                     </aspectLibraries>
-                    <!-- Excluir el configuration-processor -->
-                    <excludes>
-                        <exclude>**/spring-boot-configuration-processor/**</exclude>
-                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
