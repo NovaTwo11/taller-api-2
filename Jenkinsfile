@@ -56,16 +56,14 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                script {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            mvn sonar:sonar \
-                                -Dsonar.projectKey=taller-api-2 \
-                                -Dsonar.projectName="Taller API 2" \
-                                -Dsonar.java.binaries=target/classes \
-                                ${MAVEN_OPTS}
-                        '''
-                    }
+                withSonarQubeEnv('SonarQube') { // Debe coincidir con el Name configurado en Jenkins
+                    sh '''
+        chmod +x mvnw || true
+        ./mvnw -B clean verify sonar:sonar \
+          -Dsonar.projectKey=taller-api-2 \
+          -Dsonar.projectName="Taller API 2" \
+          -Dsonar.java.binaries=target/classes
+      '''
                 }
             }
         }
@@ -73,7 +71,7 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
