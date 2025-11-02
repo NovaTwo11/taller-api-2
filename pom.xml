@@ -267,9 +267,19 @@
                     <source>17</source>
                     <target>17</target>
                     <showWeaveInfo>true</showWeaveInfo>
-                    <verbose>true</verbose>
+                    <verbose>false</verbose>
                     <Xlint>ignore</Xlint>
                     <encoding>UTF-8</encoding>
+                    <aspectLibraries>
+                        <aspectLibrary>
+                            <groupId>org.springframework</groupId>
+                            <artifactId>spring-aspects</artifactId>
+                        </aspectLibrary>
+                    </aspectLibraries>
+                    <!-- Excluir el configuration-processor -->
+                    <excludes>
+                        <exclude>**/spring-boot-configuration-processor/**</exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>
