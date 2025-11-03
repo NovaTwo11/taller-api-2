@@ -77,14 +77,10 @@ pipeline {
         }
 
         stage('Generate Allure Report') {
+            when { expression { fileExists('target/allure-results') } }
             steps {
-                script {
-                    allure([
-                        includeProperties: false,
-                        jdk: '',
+                allure includeProperties: false, jdk: '', installationName: 'AllureLocal',
                         results: [[path: 'target/allure-results']]
-                    ])
-                }
             }
         }
 
