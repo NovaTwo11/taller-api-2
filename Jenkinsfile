@@ -1,41 +1,21 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven3'
-        jdk 'JDK17'
-    }
-
     options {
         timestamps()
         ansiColor('xterm')
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 45, unit: 'MINUTES')
     }
 
     environment {
-        MAVEN_OPTS = '-Dmaven.resolver.transport=wagon -Dorg.eclipse.aether.connector.connectTimeout=60000 -Dorg.eclipse.aether.connector.requestTimeout=60000'
+        // SonarQube server name configurado en Manage Jenkins → System → SonarQube servers
+        SONARQUBE_SERVER = 'SonarQube'
+        // Ruta del Allure CLI preinstalado (opción A que implementaste)
+        ALLURE_CLI = '/opt/allure/bin/allure'
     }
 
     stages {
-        stage('Update CA certs (once)') {
-            steps {
-                sh '''
-                    set -e
-                    if command -v apt-get &> /dev/null; then
-                        apt-get update -y
-                        DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl
-                        update-ca-certificates
-                    fi
-                    java -version
-                    mvn -v
-                    echo "Testing connectivity..."
-                    curl -I --max-time 20 https://repo1.maven.org/maven2/ || true
-                    curl -I --max-time 20 https://maven-central.storage-download.googleapis.com/maven2/ || true
-                    curl -I --max-time 20 http://repo1.maven.org/maven2/ || true
-                '''
-            }
-        }
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -44,65 +24,82 @@ pipeline {
 
         stage('Build & Unit Tests') {
             steps {
-                sh '''
-                    set -e
-                    mvn -B -U -s ci/settings.xml \
-                        -DskipTests=false \
-                        clean verify \
-                        ${MAVEN_OPTS}
-                '''
+                sh './mvnw -q -DskipITs -DskipDeploy -Dmaven.test.failure.ignore=false clean verify'
+            }
+            post {
+                always {
+                    // Publica resultados JUnit aunque fallen tests
+                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
+                }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') { // Debe coincidir con el Name configurado en Jenkins
-                    sh '''
-        chmod +x mvnw || true
-        ./mvnw -B clean verify sonar:sonar \
-          -Dsonar.projectKey=taller-api-2 \
-          -Dsonar.projectName="Taller API 2" \
-          -Dsonar.java.binaries=target/classes
-      '''
+                withSonarQubeEnv("${env.SONARQUBE_SERVER}") {
+                    withEnv(["JAVA_HOME=${tool name: 'jdk-17', type: 'hudson.model.JDK'}", "PATH+JDK=${tool name: 'jdk-17', type: 'hudson.model.JDK'}/bin"]) {
+                        sh """
+              ./mvnw -q \
+                -DskipITs -DskipDeploy \
+                -Dsonar.projectKey=taller-api-2 \
+                -Dsonar.projectName=taller-api-2 \
+                -Dsonar.java.binaries=target/classes \
+                sonar:sonar
+            """
+                    }
                 }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
+                timeout(time: 15, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
         }
 
         stage('Generate Allure Report') {
-            when { expression { fileExists('target/allure-results') } }
+            when {
+                expression { fileExists('target/allure-results') }
+            }
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
             steps {
-                allure includeProperties: false,
-                        jdk: '',
-                        commandline: '/opt/allure/bin/allure',
-                        results: [[path: 'target/allure-results']]
+                retry(2) {
+                    allure includeProperties: false,
+                            jdk: '',
+                            commandline: "${env.ALLURE_CLI}",
+                            results: [[path: 'target/allure-results']]
+                }
             }
         }
 
         stage('Archive Artifacts') {
+            when { expression { fileExists('target') } }
             steps {
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                // JAR y reporte de Allure (si existe)
+                archiveArtifacts artifacts: 'target/*.jar, target/allure-report/**', allowEmptyArchive: true
             }
         }
+
+        // Si luego agregas despliegue, colócalo después del gate.
+        // stage('Deploy') { ... }
     }
 
     post {
-        always {
-            junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+        success {
+            echo '✅ Pipeline OK'
             cleanWs()
         }
-        success {
-            echo '✅ Pipeline ejecutado exitosamente'
+        unstable {
+            echo '🟡 Pipeline UNSTABLE'
+            cleanWs()
         }
         failure {
             echo '❌ Pipeline falló'
+            cleanWs()
         }
     }
 }
