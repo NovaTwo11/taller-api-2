@@ -79,7 +79,9 @@ pipeline {
         stage('Generate Allure Report') {
             when { expression { fileExists('target/allure-results') } }
             steps {
-                allure includeProperties: false, jdk: '', installationName: 'AllureLocal',
+                allure includeProperties: false,
+                        jdk: '',
+                        commandline: '/opt/allure/bin/allure',
                         results: [[path: 'target/allure-results']]
             }
         }
