@@ -172,13 +172,10 @@
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
         </dependency>
-        <!-- COMENTADO: AspectJ tools causa conflictos con Spring Boot 3.5.5 y Java 17
         <dependency>
-            <groupId>org.aspectj</groupId>
-            <artifactId>aspectjtools</artifactId>
-            <version>1.9.22.1</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        -->
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -260,49 +257,6 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- COMENTADO: AspectJ Maven Plugin causa conflictos con Spring Boot 3.5.5
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>aspectj-maven-plugin</artifactId>
-                <version>1.14.0</version>
-                <configuration>
-                    <complianceLevel>17</complianceLevel>
-                    <source>17</source>
-                    <target>17</target>
-                    <showWeaveInfo>true</showWeaveInfo>
-                    <verbose>false</verbose>
-                    <Xlint>ignore</Xlint>
-                    <encoding>UTF-8</encoding>
-                    <proc>none</proc>
-                    <aspectLibraries>
-                        <aspectLibrary>
-                            <groupId>org.springframework</groupId>
-                            <artifactId>spring-aspects</artifactId>
-                        </aspectLibrary>
-                    </aspectLibraries>
-                    <excludes>
-                        <exclude>**/org/springframework/boot/jdbc/**</exclude>
-                        <exclude>**/org/springframework/boot/autoconfigure/**</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>test-compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.aspectj</groupId>
-                        <artifactId>aspectjtools</artifactId>
-                        <version>1.9.22.1</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-            -->
 
             <plugin>
                 <groupId>org.graalvm.buildtools</groupId>
