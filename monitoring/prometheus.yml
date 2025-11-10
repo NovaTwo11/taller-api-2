@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s          # Cada cuánto tiempo se recopilan métricas
+  evaluation_interval: 15s      # Cada cuánto se evalúan las reglas
+  scrape_timeout: 10s           # Tiempo máximo por petición de scrape
+
+# ===============================
+# Configuración de Prometheus
+# ===============================
+scrape_configs:
+
+  # 1️⃣ Prometheus monitoreándose a sí mismo
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # 2️⃣ Monitoreo de la aplicación principal (Spring Boot / taller-api)
+  - job_name: 'taller-api'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    relabel_configs:
+      - target_label: instance
+        replacement: "taller-api"
+      - target_label: service
+        replacement: "taller-api"
+
+
+  # 3️⃣ Loki (almacenamiento de logs)
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    metrics_path: /metrics
+    relabel_configs:
+      - target_label: service
+        replacement: "loki"
+
+  # 4️⃣ Promtail (agente de logs)
+  - job_name: 'promtail'
+    static_configs:
+      - targets: ['promtail:9080']
+    metrics_path: /metrics
+    relabel_configs:
+      - target_label: service
+        replacement: "promtail"
+
+  # 5️⃣ Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: /metrics
+    relabel_configs:
+      - target_label: service
+        replacement: "grafana"

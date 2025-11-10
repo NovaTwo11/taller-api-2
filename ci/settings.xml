@@ -24,21 +24,6 @@
         </mirror>
     </mirrors>
 
-    <!-- Descomenta si tu red usa proxy
-    <proxies>
-      <proxy>
-        <id>corp-proxy</id>
-        <active>true</active>
-        <protocol>http</protocol>
-        <host>proxy.host.local</host>
-        <port>8080</port>
-        <username></username>
-        <password></password>
-        <nonProxyHosts>localhost|127.0.0.1|*.local|host.docker.internal|sonarqube|jenkins</nonProxyHosts>
-      </proxy>
-    </proxies>
-    -->
-
     <profiles>
         <profile>
             <id>central-profile</id>
