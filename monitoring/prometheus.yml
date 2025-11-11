@@ -17,13 +17,18 @@ scrape_configs:
   - job_name: 'taller-api'
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['taller-api-2:8080']
     relabel_configs:
-      - target_label: instance
-        replacement: "taller-api"
+      # 1. Etiquetas de servicio: Es útil para agrupar métricas de todos los pods/instancias
       - target_label: service
         replacement: "taller-api"
 
+      # 2. Etiqueta de instancia: La dejamos con el valor por defecto (__address__),
+      #    o forzamos un valor más descriptivo si lo prefieres, pero 'service' ya basta.
+      #    Si quieres que la instancia se llame 'tallerapi2_api', puedes omitir el 'replacement: "taller-api"'
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "$1" # Usar el valor capturado del 'target' (tallerapi2_api:8080)
 
   # 3️⃣ Loki (almacenamiento de logs)
   - job_name: 'loki'

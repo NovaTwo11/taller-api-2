@@ -66,6 +66,31 @@ services:
     networks:
       - ci_net
 
+  taller-api-2:
+    build: ../taller-api-2
+    container_name: tallerapi2_api
+    ports:
+      - "8080:8080"
+    environment:
+      # Las variables de entorno para que se conecte a otros servicios
+      - DB_URL=jdbc:postgresql://tallerapi2_postgres:5432/tallerdb
+      - DB_USER=${DB_USER:-talleruser}
+      - DB_PASSWORD=${DB_PASSWORD:-tallerpass}
+      # URLs internas de docker
+      - KEYCLOAK_SERVER_URL=http://tallerapi2_keycloak:8080
+      - RABBIT_HOST=tallerapi2_rabbitmq
+      - RABBIT_PORT=5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    networks:
+      - ci_net
+
+
   notification-orchestrator:
     build: ../notification-orchestrator
     ports:
@@ -163,6 +188,8 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     restart: unless-stopped
+    networks:
+      - ci_net
 
   grafana:
     image: grafana/grafana:10.4.0
@@ -177,6 +204,9 @@ services:
     depends_on:
       - prometheus
       - loki
+    networks:
+        - ci_net
+
 
   loki:
     image: grafana/loki:2.9.1
@@ -186,6 +216,8 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+        - ci_net
 
   promtail:
     image: grafana/promtail:2.9.3
@@ -198,6 +230,8 @@ services:
     depends_on:
       - loki
     restart: unless-stopped
+    networks:
+        - ci_net
 
 
 
