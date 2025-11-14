@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent;
 
 @Service
 public class EventPublisherService {
@@ -40,6 +41,24 @@ public class EventPublisherService {
             log.error("Error al publicar evento de usuario creado: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * Publica evento de usuario eliminado
+     */
+    public void publishUsuarioEliminado(UsuarioEliminadoEvent event) {
+        try {
+            log.info("Publicando evento de usuario eliminado: {}", event);
+            rabbitTemplate.convertAndSend(
+                    properties.getExchange(),
+                    properties.getUsuarios().getEliminados().getRoutingKey(), // Usamos el nuevo routing key
+                    event
+            );
+            log.info("Evento de eliminación publicado exitosamente para usuario: {}", event.getEmail());
+        } catch (Exception e) {
+            log.error("Error al publicar evento de usuario eliminado: {}", e.getMessage(), e);
+        }
+    }
+
 
     /**
      * Publica evento de sesión iniciada

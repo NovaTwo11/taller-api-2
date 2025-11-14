@@ -71,4 +71,26 @@ public class PerfilController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Endpoint para que el Gateway (u otro admin) obtenga un perfil por ID de usuario.
+     * En una app real, esto buscaría en un PerfilRepository.
+     */
+    @GetMapping("/por-usuario/{userId}")
+    public ResponseEntity<PerfilResponse> obtenerPerfilPorUsuarioId(@PathVariable UUID userId) {
+        // --- STUB (Simulación) ---
+        // En una implementación real, aquí llamarías a:
+        // Perfil perfil = perfilService.obtenerPorUsuarioId(userId);
+        // y construirías la respuesta.
+
+        // Devolvemos datos dummy para que la agregación funcione:
+        PerfilRequest dummyRequest = new PerfilRequest();
+        dummyRequest.setApodo("PerfilStub-" + userId.toString().substring(0, 4));
+        dummyRequest.setBiografia("Biografía de prueba para el usuario " + userId);
+        dummyRequest.setPaisResidencia("Colombia");
+
+        PerfilResponse response = new PerfilResponse(userId, dummyRequest);
+        return ResponseEntity.ok(response);
+        // --- Fin del STUB ---
+    }
 }

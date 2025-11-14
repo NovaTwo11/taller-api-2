@@ -16,6 +16,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +52,10 @@ public class RabbitMQConfig {
         return new Queue(properties.getPassword().getQueue(), true);
     }
 
+    @Bean
+    public Queue usuariosEliminadosQueue() {return new Queue(properties.getUsuarios().getEliminados().getQueue(), true);
+    }
+
     // ========== BINDINGS ==========
     @Bean
     public Binding usuariosBinding(Queue usuariosQueue, TopicExchange appExchange) {
@@ -73,6 +78,13 @@ public class RabbitMQConfig {
                 .with(properties.getPassword().getRoutingKey());
     }
 
+    @Bean
+    public Binding usuariosEliminadosBinding(Queue usuariosEliminadosQueue, TopicExchange appExchange) {
+        return BindingBuilder.bind(usuariosEliminadosQueue)
+                .to(appExchange)
+                .with(properties.getUsuarios().getEliminados().getRoutingKey());
+    }
+
     // ========== MESSAGE CONVERTER ==========
     /**
      * Converter que serializa los objetos en JSON con mapeo de clases
@@ -88,6 +100,7 @@ public class RabbitMQConfig {
         idClassMapping.put("co.edu.uniquindio.tallerapi2.dto.events.SesionIniciadaEvent", SesionIniciadaEvent.class);
         idClassMapping.put("co.edu.uniquindio.tallerapi2.dto.events.PasswordResetSolicitadoEvent", PasswordResetSolicitadoEvent.class);
         idClassMapping.put("co.edu.uniquindio.tallerapi2.dto.events.PasswordActualizadoEvent", PasswordActualizadoEvent.class);
+        idClassMapping.put("co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent", UsuarioEliminadoEvent.class);
 
         classMapper.setIdClassMapping(idClassMapping);
         converter.setClassMapper(classMapper);

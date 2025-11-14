@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import co.edu.uniquindio.tallerapi2.dto.events.UsuarioCreadoEvent;
 import co.edu.uniquindio.tallerapi2.service.EventPublisherService;
 import org.springframework.web.server.ResponseStatusException;
+import co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -106,10 +107,6 @@ public class UsuarioController {
         }
     }
 
-    // =================================================================================
-    // RUTAS ESPECÍFICAS (ANTES QUE LAS RUTAS DINÁMICAS)
-    // =================================================================================
-
     @Operation(summary = "Buscar usuarios por nombre",
             description = "Busca y retorna usuarios cuyo nombre coincida parcialmente")
     @ApiResponses(value = {
@@ -154,11 +151,6 @@ public class UsuarioController {
         String dbPassword = usuario.getPassword();
         boolean passwordMatch = false;
 
-        // ====================================================================
-        // FIX MEJORADO: Usar try-catch para capturar IllegalArgumentException que viene de BCrypt
-        // si el hash es null o inválido, asegurando que se trate como un BAD_REQUEST (400)
-        // en lugar de un 500.
-        // ====================================================================
         try {
             if (dbPassword != null) {
                 passwordMatch = passwordEncoder.matches(request.getCurrentPassword(), dbPassword);
@@ -205,10 +197,6 @@ public class UsuarioController {
                     ));
         }
     }
-
-    // =================================================================================
-    // RUTAS DINÁMICAS (VAN DESPUÉS DE LAS ESPECÍFICAS)
-    // =================================================================================
 
     @Operation(summary = "Obtener usuario por ID",
             description = "Busca y retorna un usuario específico por su ID")
@@ -342,7 +330,7 @@ public class UsuarioController {
     }
 
     @Operation(summary = "Eliminar usuario",
-            description = "Elimina un usuario del sistema")
+            description = "Elimina un usuario del sistema y publica un evento") // Descripción actualizada
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuario eliminado exitosamente"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado",
@@ -358,13 +346,24 @@ public class UsuarioController {
 
         try {
             Optional<Usuario> usuarioOpt = usuarioRepository.findById(id);
-
             if (usuarioOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiError(404, "Not Found", "Usuario no encontrado", request.getRequestURI()));
             }
 
+            // --- INICIO DE LA MODIFICACIÓN ---
+            Usuario usuario = usuarioOpt.get();
+            String email = usuario.getEmail(); // Capturamos los datos ANTES de borrar
+
+            // 1. Eliminar de la base de datos
             usuarioRepository.deleteById(id);
+
+            // 2. Publicar el evento de eliminación
+            UsuarioEliminadoEvent evento = new UsuarioEliminadoEvent(id, email);
+            eventPublisher.publishUsuarioEliminado(evento);
+
+            log.info("Usuario {} eliminado y evento publicado.", id);
+            // --- FIN DE LA MODIFICACIÓN ---
 
             return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado exitosamente"));
 
@@ -372,6 +371,8 @@ public class UsuarioController {
             return ResponseEntity.badRequest()
                     .body(new ApiError(400, "Bad Request", "ID de usuario inválido", request.getRequestURI()));
         } catch (Exception e) {
+            // Captura errores si, por ejemplo, el evento no se puede publicar (aunque no debería detener la eliminación)
+            log.error("Error en el proceso de eliminación para el ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiError(500, "Internal Server Error", "Error interno del servidor", request.getRequestURI()));
         }
