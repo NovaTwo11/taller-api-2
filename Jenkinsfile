@@ -3,7 +3,7 @@ pipeline {
         docker {
             image 'maven:3.9.6-eclipse-temurin-17'
             // Conecta el agente a la red de docker-compose
-            args '--network app-network -v $PWD/ci/settings.xml:/root/.m2/settings.xml'
+            args '--network app-network -v $PWD/ci/settings.xml:/usr/share/maven/ref/settings.xml'
         }
     }
 
