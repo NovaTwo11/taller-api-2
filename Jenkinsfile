@@ -3,7 +3,7 @@ pipeline {
         docker {
             image 'maven:3.9.6-eclipse-temurin-17'
             // Conecta el agente a la red de docker-compose
-            args '--network app-network -v $PWD/ci/settings.xml:/usr/share/maven/ref/settings.xml'
+            args '--network app-network'
         }
     }
 
@@ -29,10 +29,9 @@ pipeline {
         stage('Compile & Test') {
             steps {
                 echo 'Ejecutando pruebas unitarias...'
-                // Pasa las variables de entorno para que los tests (si los hubiera) las usen
                 sh '''
-                    mvn clean install \
-                        -s /usr/share/maven/ref/settings.xml \
+                    # 💡 RUTA FINAL CORRECTA: Apunta al archivo en el workspace
+                    mvn clean install -s ci/settings.xml \
                         -Dspring.datasource.url=${DB_URL} \
                         -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
                         -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
