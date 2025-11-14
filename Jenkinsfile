@@ -70,15 +70,6 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                echo 'Construyendo imagen Docker...'
-                script {
-                    def appImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
-                    echo "Imagen construida: ${appImage.id}"
-                }
-            }
-        }
     }
 
     post {
