@@ -1,11 +1,9 @@
-// taller-api-2/Jenkinsfile
 pipeline {
-    // [CORREGIDO] Usa un agente Docker con la imagen de Maven y JDK 17
     agent {
         docker {
             image 'maven:3.9.6-eclipse-temurin-17'
             // Conecta el agente a la red de docker-compose
-            args '--network app-network'
+            args '--network app-network -v $PWD/ci/settings.xml:/root/.m2/settings.xml'
         }
     }
 
