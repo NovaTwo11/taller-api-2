@@ -32,6 +32,7 @@ pipeline {
                 // Pasa las variables de entorno para que los tests (si los hubiera) las usen
                 sh '''
                     mvn clean install \
+                        -s /usr/share/maven/ref/settings.xml \
                         -Dspring.datasource.url=${DB_URL} \
                         -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
                         -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
