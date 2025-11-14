@@ -1,88 +1,68 @@
-// Jenkinsfile para taller-api-2
+// taller-api-2/Jenkinsfile
 pipeline {
+    // [CORREGIDO] Usa un agente Docker con la imagen de Maven y JDK 17
     agent {
-        // Usa un agente Docker con Maven y JDK 17 preinstalados
         docker {
-            image 'maven:3.9-eclipse-temurin-17'
-            // Monta el socket de Docker para construir imágenes
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
+            image 'maven:3.9.6-eclipse-temurin-17'
+            // Conecta el agente a la red de docker-compose
+            args '--network app-network'
         }
     }
 
     environment {
-        // Define la URL de SonarQube
-        SONAR_HOST_URL = "http://sonarqube:9000" // Asumiendo que Jenkins y SonarQube están en la misma red Docker
-        // Define tu clave de proyecto de Sonar
-        SONAR_PROJECT_KEY = "taller-api-2"
+        // Define las URLs de los servicios DENTRO de la red de Docker
+        // Usamos los nombres de los servicios del docker-compose.yml [cite: 950, 951, 955]
+        SONAR_HOST_URL    = 'http://sonarqube:9000'
+        DB_URL            = 'jdbc:postgresql://postgres:5432/tallerdb'
+        RABBITMQ_HOST     = 'rabbitmq'
+        KEYCLOAK_URL      = 'http://keycloak:8080'
+        // Credenciales de Sonar (ajusta si es necesario)
+        SONAR_TOKEN       = credentials('sonar-token')
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo "📥 Clonando repositorio..."
+                echo 'Clonando repositorio...'
                 checkout scm
             }
         }
 
-        stage('Compile') {
+        stage('Compile & Test') {
             steps {
-                echo "📦 Compilando..."
-                // Usa el settings.xml para mejorar la descarga de dependencias
-                sh 'mvn compile -s ci/settings.xml'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                echo "🧪 Ejecutando tests unitarios..."
-                // El pom.xml ya está configurado para JaCoCo
-                sh 'mvn test -s ci/settings.xml'
-            }
-        }
-
-        stage('Package') {
-            steps {
-                echo "🎁 Empaquetando JAR..."
-                sh 'mvn package -s ci/settings.xml -DskipTests'
+                echo 'Ejecutando pruebas unitarias...'
+                // Pasa las variables de entorno para que los tests (si los hubiera) las usen
+                sh '''
+                    mvn clean install \
+                        -Dspring.datasource.url=${DB_URL} \
+                        -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
+                        -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
+                        -Dkeycloak.admin.url=${KEYCLOAK_URL} \
+                        -Dskip.integration.tests=true 
+                '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo "📊 Analizando con SonarQube..."
-                script {
-                    // Asume que tienes un 'SonarQube' configurado en Manage Jenkins > Configure System
-                    // Si no, usa 'withCredentials' para el token
-                    sh """
+                echo 'Analizando con SonarQube...'
+                // Usa las propiedades de sonar-project.properties [cite: 880]
+                sh '''
                     mvn sonar:sonar \
-                        -s ci/settings.xml \
                         -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.login=${env.SONAR_AUTH_TOKEN} 
-                    """
-                    // Necesitarás definir SONAR_AUTH_TOKEN como credencial en Jenkins
-                }
+                        -Dsonar.login=${SONAR_TOKEN} \
+                        -Dsonar.projectKey=taller-api-2 \
+                        -Dsonar.projectName="Taller API 2 (Java)"
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "🐳 Construyendo imagen Docker..."
-                // El Dockerfile está en la raíz de 'taller-api-2'
-                sh 'docker build -t taller-api-2:${env.BUILD_NUMBER} .'
-            }
-        }
-
-        stage('Push Docker Image') {
-            // Opcional: Descomenta si quieres pushear a un registro
-            when { expression { return false } }
-            steps {
-                echo "🚀 Publicando imagen en DockerHub..."
-                // Asume que 'dockerhub-credentials' es un ID de credencial en Jenkins
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}'
-                    sh 'docker tag taller-api-2:${env.BUILD_NUMBER} tu-usuario/taller-api-2:${env.BUILD_NUMBER}'
-                    sh 'docker push tu-usuario/taller-api-2:${env.BUILD_NUMBER}'
+                echo 'Construyendo imagen Docker...'
+                script {
+                    def appImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
+                    echo "Imagen construida: ${appImage.id}"
                 }
             }
         }
@@ -90,12 +70,9 @@ pipeline {
 
     post {
         always {
-            echo "🧹 Limpiando workspace..."
-            // Archiva los reportes de tests
-            junit 'target/surefire-reports/*.xml'
-            // Archiva los reportes de cobertura
-            jacoco(execPattern: 'target/jacoco.exec')
-            cleanWs()
+            echo 'Limpiando workspace...'
+            junit 'target/surefire-reports/*.xml' // Publica resultados de tests [cite: 839]
+            cleanWs() // [cite: 840]
         }
     }
 }
