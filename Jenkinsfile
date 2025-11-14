@@ -1,62 +1,60 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9-eclipse-temurin-17'
-            args '-v $HOME/.m2:/root/.m2'
-        }
+    agent any  // <-- Importante: NO usamos agent docker
+
+    tools {
+        maven 'Maven3'   // nombre configurado en Jenkins (Manage Jenkins > Global Tools)
+        jdk 'JDK17'      // igual
     }
 
     stages {
         stage('Checkout') {
             steps {
-                ansiColor('xterm') {
-                    checkout scm
-                }
+                checkout scm
             }
         }
 
         stage('Compile') {
             steps {
-                ansiColor('xterm') {
-                    sh 'mvn compile'
-                }
+                sh 'mvn compile'
             }
         }
 
         stage('Test') {
             steps {
-                ansiColor('xterm') {
-                    sh 'mvn test -Dskip.integration.tests=true'
-                }
+                sh 'mvn test -Dskip.integration.tests=true'
             }
         }
 
         stage('Package') {
             steps {
-                ansiColor('xterm') {
-                    sh 'mvn package -DskipTests'
-                }
+                sh 'mvn package -DskipTests'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                ansiColor('xterm') {
-                    script {
-                        def appImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
-                    }
+                script {
+                    dockerImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
                 }
+            }
+        }
+
+        stage('Run Container (optional)') {
+            when { expression { return false } } // activa si quieres probarlo
+            steps {
+                sh """
+                    docker stop taller-api-2 || true
+                    docker rm taller-api-2 || true
+                    docker run -d --name taller-api-2 -p 8080:8080 taller-api-2:${env.BUILD_NUMBER}
+                """
             }
         }
     }
 
     post {
         always {
-            ansiColor('xterm') {
-                cleanWs()
-                junit 'target/surefire-reports/*.xml'
-            }
+            junit 'target/surefire-reports/*.xml'
+            cleanWs()
         }
     }
-
 }
