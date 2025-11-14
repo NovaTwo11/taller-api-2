@@ -30,16 +30,15 @@ pipeline {
             steps {
                 echo 'Ejecutando pruebas unitarias...'
                 sh '''
-                    # 💡 RUTA FINAL CORRECTA: Apunta al archivo en el workspace
-                    mvn clean install -s ci/settings.xml \
-                        -Dspring.datasource.url=${DB_URL} \
-                        -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
-                        -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
-                        -Dkeycloak.admin.url=${KEYCLOAK_URL} \
-                        -Dskip.integration.tests=true 
-                '''
+            mvn clean install -s ci/settings.xml \
+                -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
+                -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
+                -Dkeycloak.admin.url=${KEYCLOAK_URL} \
+                -Dskip.integration.tests=true
+        '''
             }
         }
+
 
         stage('SonarQube Analysis') {
             steps {
