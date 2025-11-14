@@ -1,11 +1,12 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.9.6-eclipse-temurin-17'
-            // Conecta el agente a la red de docker-compose
-            args '--network app-network'
+            image 'my-ci/maven-git-docker:latest'
+            // Monta socket Docker y conéctalo a la red de tus servicios
+            args '--network app-network -v /var/run/docker.sock:/var/run/docker.sock -u root'
         }
     }
+    options { skipDefaultCheckout() }
 
     environment {
         // Define las URLs de los servicios DENTRO de la red de Docker
@@ -21,23 +22,38 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo 'Clonando repositorio...'
+                echo 'Checkout dentro del contenedor...'
                 checkout scm
             }
         }
 
         stage('Compile & Test') {
             steps {
-                echo 'Ejecutando pruebas unitarias...'
                 sh '''
-            mvn clean install -s ci/settings.xml \
-                -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
-                -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
-                -Dkeycloak.admin.url=${KEYCLOAK_URL} \
-                -Dskip.integration.tests=true
+          mvn clean install -s ci/settings.xml \
+            -Dspring.rabbitmq.host=${RABBITMQ_HOST} \
+            -Dspring.security.oauth2.resourceserver.jwt.issuer-uri=${KEYCLOAK_URL}/realms/taller \
+            -Dkeycloak.admin.url=${KEYCLOAK_URL} \
+            -Dskip.integration.tests=true
         '''
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Debug: confirma que docker existe y que el socket está montado
+                    sh 'which docker || true'
+                    sh 'docker --version || true'
+                    sh 'ls -l /var/run/docker.sock || true'
+
+                    def appImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
+                    echo "Imagen construida: ${appImage.id}"
+                }
+            }
+        }
+
+
 
 
         stage('SonarQube Analysis') {
