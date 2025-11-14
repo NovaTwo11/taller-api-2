@@ -15,11 +15,10 @@ public class SesionIniciadaEvent {
     private String nombre;
     private LocalDateTime timestamp;
 
-    // 🔥 NUEVOS: Datos de seguridad
     private String ipAddress;
     private String userAgent;
     private String deviceInfo;
-    private String location; // Opcional: ciudad/país basado en IP
+    private String location;
 
     /**
      * Constructor básico

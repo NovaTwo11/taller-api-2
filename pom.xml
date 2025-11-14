@@ -75,6 +75,13 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
+        <!-- Dependencia para el Cliente de Administración de Keycloak -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>25.0.1</version> <!-- Asegúrate de usar una versión compatible con tu servidor Keycloak -->
+        </dependency>
+
         <!-- Soporte JWT -->
 
         <dependency>

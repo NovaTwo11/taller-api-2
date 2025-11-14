@@ -4,18 +4,16 @@ import co.edu.uniquindio.tallerapi2.exception.IntegracionKeycloakException;
 import co.edu.uniquindio.tallerapi2.exception.UsuarioDuplicadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.beans.factory.annotation.Value;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class KeycloakAdminService {
@@ -178,7 +176,15 @@ public class KeycloakAdminService {
             log.warn("⚠️ No crítico: fallo en update de usuario en Keycloak: {}", ex.getMessage());
         }
 
-        // Paso 4-5 (opcional): asignar roles – NO BLOQUEANTE
+        // Paso 4: REMOVER el rol "admin" si existe
+        try {
+            removerRolAdmin(accessToken, userId);
+            log.debug("Rol admin removido (si existía) para usuario: {}", email);
+        } catch (Exception ex) {
+            log.warn("⚠️ No crítico: fallo removiendo rol admin: {}", ex.getMessage());
+        }
+
+        // Paso 5: asignar solo rol "user" + roles básicos
         try {
             asignarRolesPorDefecto(accessToken, userId);
             log.debug("Roles asignados para usuario: {}", email);
@@ -255,6 +261,52 @@ public class KeycloakAdminService {
         }
     }
 
+    private void removerRolAdmin(String accessToken, String userId) {
+        if (!keycloakEnabled) {
+            return;
+        }
+
+        try {
+            // Obtener todos los roles del realm
+            String realmRolesUrl = String.format("%s/admin/realms/%s/roles", keycloakUrl, realm);
+            List<Map<String, Object>> allRoles = webClient.get()
+                    .uri(realmRolesUrl)
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve()
+                    .bodyToFlux(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .collectList()
+                    .block();
+
+            if (allRoles == null || allRoles.isEmpty()) {
+                return;
+            }
+
+            // Buscar el rol "admin"
+            Optional<Map<String, Object>> adminRole = allRoles.stream()
+                    .filter(role -> "admin".equals(role.get("name")))
+                    .findFirst();
+
+            if (adminRole.isPresent()) {
+                // Remover el rol admin del usuario
+                String removeMappingUrl = String.format("%s/admin/realms/%s/users/%s/role-mappings/realm",
+                        keycloakUrl, realm, userId);
+
+                webClient.method(org.springframework.http.HttpMethod.DELETE)
+                        .uri(removeMappingUrl)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(Collections.singletonList(adminRole.get()))
+                        .retrieve()
+                        .toBodilessEntity()
+                        .block();
+
+                log.debug("Rol admin removido exitosamente");
+            }
+        } catch (Exception e) {
+            log.warn("Error removiendo rol admin (no crítico): {}", e.getMessage());
+        }
+    }
+
     private void asignarRolesPorDefecto(String accessToken, String userId) {
         if (!keycloakEnabled) {
             return;
@@ -275,10 +327,13 @@ public class KeycloakAdminService {
                 return;
             }
 
+            // Asignar solo el rol "user" + roles técnicos básicos
             List<Map<String, Object>> defaultRoles = allRoles.stream()
                     .filter(role -> {
                         String name = (String) role.get("name");
-                        return "offline_access".equals(name) || "uma_authorization".equals(name);
+                        return "user".equals(name) ||
+                                "offline_access".equals(name) ||
+                                "uma_authorization".equals(name);
                     })
                     .toList();
 
@@ -326,34 +381,17 @@ public class KeycloakAdminService {
             }
 
             String userId = (String) users.get(0).get("id");
-
-            // Reset password
-            String resetUrl = String.format("%s/admin/realms/%s/users/%s/reset-password", keycloakUrl, realm, userId);
-
-            Map<String, Object> credential = new HashMap<>();
-            credential.put("type", "password");
-            credential.put("value", nuevaClave);
-            credential.put("temporary", false);
-
-            webClient.put()
-                    .uri(resetUrl)
-                    .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(credential)
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
-
-            log.info("✅ Contraseña actualizada en Keycloak para: {}", email);
+            setPasswordConToken(accessToken, userId, nuevaClave);
+            log.info("Password actualizada exitosamente para: {}", email);
         } catch (WebClientResponseException e) {
-            log.error("Error actualizando contraseña. Status: {}, Body: {}",
+            log.error("Error actualizando password. Status: {}, Body: {}",
                     e.getStatusCode().value(), e.getResponseBodyAsString());
             throw new IntegracionKeycloakException(
-                    "Error actualizando contraseña en Keycloak (status " + e.getStatusCode().value() + "): "
+                    "Error actualizando password (status " + e.getStatusCode().value() + "): "
                             + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            log.error("Error inesperado actualizando contraseña: {}", e.getMessage(), e);
-            throw new IntegracionKeycloakException("Error inesperado actualizando contraseña: " + e.getMessage(), e);
+            log.error("Error inesperado actualizando password: {}", e.getMessage(), e);
+            throw new IntegracionKeycloakException("Error inesperado actualizando password: " + e.getMessage(), e);
         }
     }
 }

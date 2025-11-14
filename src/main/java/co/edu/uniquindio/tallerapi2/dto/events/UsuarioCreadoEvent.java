@@ -15,11 +15,7 @@ public class UsuarioCreadoEvent {
     private String email;
     private String nombre;
     private LocalDateTime timestamp;
-
-    // 🔥 NUEVO: Token para activación de cuenta
     private String activationToken;
-
-    // 🔥 NUEVO: URL base para construir el link de activación
     private String baseUrl;
 
     /**

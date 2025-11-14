@@ -31,7 +31,7 @@ public class EventPublisherService {
 
             rabbitTemplate.convertAndSend(
                     properties.getExchange(),
-                    properties.getUsuarios().getRoutingKey(),  // ✅ usuarios.created
+                    properties.getUsuarios().getRoutingKey(),
                     event
             );
 
@@ -47,7 +47,7 @@ public class EventPublisherService {
     public void publishSesionIniciada(SesionIniciadaEvent event) {
         rabbitTemplate.convertAndSend(
                 properties.getExchange(),
-                properties.getSesiones().getRoutingKey(),   // ✅ sesiones.iniciada
+                properties.getSesiones().getRoutingKey(),
                 event
         );
     }
@@ -58,7 +58,7 @@ public class EventPublisherService {
     public void publishPasswordResetSolicitado(PasswordResetSolicitadoEvent event) {
         rabbitTemplate.convertAndSend(
                 properties.getExchange(),
-                "password.reset.requested",   // 🔥 NUEVA routing key
+                "password.reset.requested",
                 event
         );
     }
@@ -69,7 +69,7 @@ public class EventPublisherService {
     public void publishPasswordActualizado(PasswordActualizadoEvent event) {
         rabbitTemplate.convertAndSend(
                 properties.getExchange(),
-                "password.updated",   // 🔥 NUEVA routing key
+                "password.updated",
                 event
         );
     }

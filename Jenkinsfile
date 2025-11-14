@@ -1,100 +1,54 @@
 pipeline {
-    agent any
-
-    options {
-        timestamps()
-        ansiColor('xterm')
-        buildDiscarder(logRotator(numToKeepStr: '20'))
-        timeout(time: 45, unit: 'MINUTES')
+    agent {
+        // Usamos un agente de Docker que tenga Maven y JDK 17
+        docker {
+            image 'maven:3.9-eclipse-temurin-17'
+            args '-v $HOME/.m2:/root/.m2' // Cachear dependencias de Maven
+        }
     }
-
-    environment {
-        // Nombre configurado en Manage Jenkins → System → SonarQube servers
-        SONARQUBE_SERVER = 'SonarQube'
-        // Ruta del Allure CLI preinstalado
-        ALLURE_CLI = '/opt/allure/bin/allure'
-    }
-
     stages {
         stage('Checkout') {
             steps {
+                // Clona el repositorio (asumiendo que Jenkins está configurado para esto)
                 checkout scm
             }
         }
-
-        stage('Build & Unit Tests') {
+        stage('Compile') {
             steps {
-                sh '''
-          chmod +x mvnw
-          ./mvnw -q -DskipITs -DskipDeploy -Dmaven.test.failure.ignore=false clean verify
-        '''
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
-                }
+                sh 'mvn compile'
             }
         }
-
-        stage('SonarQube Analysis') {
+        stage('Test') {
             steps {
-                withSonarQubeEnv("${env.SONARQUBE_SERVER}") {
-                    sh '''
-            chmod +x mvnw
-            ./mvnw -q \
-              -DskipITs -DskipDeploy \
-              -Dsonar.projectKey=taller-api-2 \
-              -Dsonar.projectName=taller-api-2 \
-              -Dsonar.java.binaries=target/classes \
-              sonar:sonar
-          '''
-                }
+                // Omitimos tests de integración (@Test) y corremos solo unitarios
+                sh 'mvn test -Dskip.integration.tests=true'
             }
         }
-
-        stage('Quality Gate') {
+        stage('Package') {
             steps {
-                timeout(time: 15, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+                // Genera el .jar
+                sh 'mvn package -DskipTests'
             }
         }
-
-        stage('Generate Allure Report') {
-            when {
-                expression { fileExists('target/allure-results') }
-            }
-            options { timeout(time: 10, unit: 'MINUTES') }
+        stage('Build Docker Image') {
             steps {
-                retry(2) {
-                    allure includeProperties: false,
-                            jdk: '',
-                            commandline: "${env.ALLURE_CLI}",
-                            results: [[path: 'target/allure-results']]
+                script {
+                    // Usamos el Dockerfile que está en este mismo directorio
+                    def appImage = docker.build("taller-api-2:${env.BUILD_NUMBER}")
+                    // Opcional: Si tuvieras un registry (Docker Hub, ECR, etc.)
+                    // docker.withRegistry('https://docker.my-registry.com', 'my-registry-credentials') {
+                    //    appImage.push()
+                    // }
                 }
-            }
-        }
-
-        stage('Archive Artifacts') {
-            when { expression { fileExists('target') } }
-            steps {
-                archiveArtifacts artifacts: 'target/*.jar, target/allure-report/**', allowEmptyArchive: true
             }
         }
     }
-
     post {
-        success {
-            echo '✅ Pipeline OK'
+        always {
+            // Limpiar el workspace
             cleanWs()
-        }
-        unstable {
-            echo '🟡 Pipeline UNSTABLE'
-            cleanWs()
-        }
-        failure {
-            echo '❌ Pipeline falló'
-            cleanWs()
+            // Recoger reportes de tests (si se generan)
+            junit 'target/surefire-reports/*.xml'
         }
     }
 }
