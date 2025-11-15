@@ -8,13 +8,17 @@ public class PasswordActualizadoEvent {
     private UUID usuarioId;
     private String email;
 
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
-    private LocalDateTime timestamp;
+    // 1. AÑADIR CAMPO 'nombre' QUE FALTABA
+    private String nombre;
+
+    // 2. RENOMBRAR 'timestamp' A 'fechaActualizacion' (coincide con Pydantic) Y AÑADIR FORMATO
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
+    private LocalDateTime fechaActualizacion;
 
     private String eventType;
 
     public PasswordActualizadoEvent() {
-        this.timestamp = LocalDateTime.now();
+        this.fechaActualizacion = LocalDateTime.now(); // 3. Usar el nuevo nombre
         this.eventType = "PASSWORD_ACTUALIZADO";
     }
 
@@ -24,35 +28,29 @@ public class PasswordActualizadoEvent {
         this.email = email;
     }
 
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
+    // 4. ACTUALIZAR CONSTRUCTOR
+    public PasswordActualizadoEvent(UUID usuarioId, String email, String nombre) {
+        this();
         this.usuarioId = usuarioId;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
         this.email = email;
+        this.nombre = nombre; // 5. Asignar nombre
     }
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
+    // Getters y Setters (Generados manualmente)
 
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
+    public UUID getUsuarioId() { return usuarioId; }
+    public void setUsuarioId(UUID usuarioId) { this.usuarioId = usuarioId; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getEventType() {
-        return eventType;
-    }
+    // 6. AÑADIR GETTER Y SETTER PARA 'nombre'
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
-    }
+    // 7. ACTUALIZAR GETTER Y SETTER PARA 'fechaActualizacion'
+    public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
+    public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+
+    public String getEventType() { return eventType; }
+    public void setEventType(String eventType) { this.eventType = eventType; }
 }

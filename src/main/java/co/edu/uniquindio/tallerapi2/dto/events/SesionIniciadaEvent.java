@@ -1,18 +1,22 @@
 package co.edu.uniquindio.tallerapi2.dto.events;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class SesionIniciadaEvent {
-    private Long usuarioId;
+    private UUID usuarioId;
     private String email;
     private String nombre;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
     private LocalDateTime timestamp;
 
     private String ipAddress;
@@ -23,7 +27,7 @@ public class SesionIniciadaEvent {
     /**
      * Constructor básico
      */
-    public SesionIniciadaEvent(Long usuarioId, String email, String nombre) {
+    public SesionIniciadaEvent(UUID usuarioId, String email, String nombre) {
         this.usuarioId = usuarioId;
         this.email = email;
         this.nombre = nombre;
@@ -33,7 +37,7 @@ public class SesionIniciadaEvent {
     /**
      * Constructor completo con datos de seguridad
      */
-    public SesionIniciadaEvent(Long usuarioId, String email, String nombre,
+    public SesionIniciadaEvent(UUID usuarioId, String email, String nombre,
                                String ipAddress, String userAgent, String deviceInfo) {
         this.usuarioId = usuarioId;
         this.email = email;

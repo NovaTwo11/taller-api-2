@@ -1,5 +1,7 @@
 package co.edu.uniquindio.tallerapi2.controller;
 
+// --- Imports Modificados ---
+import co.edu.uniquindio.tallerapi2.config.AppRabbitMQProperties; // <--- AÑADIDO
 import co.edu.uniquindio.tallerapi2.dto.ApiError;
 import co.edu.uniquindio.tallerapi2.dto.SesionRequest;
 import co.edu.uniquindio.tallerapi2.dto.SesionResponse;
@@ -31,10 +33,15 @@ public class SesionController {
 
     private final UsuarioRepository usuarioRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final AppRabbitMQProperties rabbitMQProperties; // <--- AÑADIDO
 
-    public SesionController(UsuarioRepository usuarioRepository, RabbitTemplate rabbitTemplate) {
+    // --- Constructor Modificado ---
+    public SesionController(UsuarioRepository usuarioRepository,
+                            RabbitTemplate rabbitTemplate,
+                            AppRabbitMQProperties rabbitMQProperties) { // <--- MODIFICADO
         this.usuarioRepository = usuarioRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.rabbitMQProperties = rabbitMQProperties; // <--- AÑADIDO
     }
 
     @Operation(summary = "Iniciar sesión",
@@ -63,13 +70,14 @@ public class SesionController {
 
             Usuario usuario = usuarioOpt.get();
 
+            // NOTA: Esta validación de contraseña en texto plano es insegura para producción.
             if (!usuario.getPassword().equals(request.getPassword())) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new ApiError(401, "Unauthorized", "Credenciales inválidas", httpRequest.getRequestURI()));
             }
 
             // 🔥 PUBLICAR EVENTO DE SESIÓN INICIADA
-            publishSessionStartedEvent(usuario);
+            publishSessionStartedEvent(usuario, httpRequest); // <--- Modificado para pasar request
 
             SesionResponse response = new SesionResponse(
                     "Sesión iniciada exitosamente",
@@ -164,18 +172,28 @@ public class SesionController {
         }
     }
 
-    // ========== MÉTODOS PRIVADOS PARA PUBLICAR EVENTOS ==========
+    // ========== MÉTODOS PRIVADOS PARA PUBLICAR EVENTOS (CORREGIDOS) ==========
 
-    private void publishSessionStartedEvent(Usuario usuario) {
+    private void publishSessionStartedEvent(Usuario usuario, HttpServletRequest httpRequest) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("type", "SESSION_STARTED");
-            event.put("usuarioId", usuario.getId().toString());
+            event.put("usuarioId", usuario.getId().toString()); // El orquestador espera un string (UUID) o int, pero el Map lo manda como String.
             event.put("email", usuario.getEmail());
             event.put("nombre", usuario.getNombre());
             event.put("timestamp", LocalDateTime.now().toString());
 
-            rabbitTemplate.convertAndSend("session_started_queue", event);
+            // --- AÑADIDO: Datos adicionales para el correo de login ---
+            event.put("ipAddress", httpRequest.getRemoteAddr());
+            event.put("userAgent", httpRequest.getHeader("User-Agent"));
+            event.put("deviceInfo", "Desconocido"); // Se puede enriquecer más adelante
+            event.put("location", "Desconocida"); // Se puede enriquecer con GeoIP
+
+            // --- CORREGIDO: Publicar al EXCHANGE con el ROUTING KEY ---
+            rabbitTemplate.convertAndSend(
+                    rabbitMQProperties.getExchange(),
+                    rabbitMQProperties.getSesiones().getRoutingKey(), // "sesiones.iniciada"
+                    event
+            );
             System.out.println("✅ Evento SESSION_STARTED publicado para: " + usuario.getEmail());
 
         } catch (Exception e) {
@@ -186,14 +204,18 @@ public class SesionController {
     private void publishPasswordResetEvent(Usuario usuario, String resetToken) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("type", "PASSWORD_RESET_SOLICITADO");
             event.put("usuarioId", usuario.getId().toString());
             event.put("email", usuario.getEmail());
             event.put("nombre", usuario.getNombre());
-            event.put("resetToken", resetToken);
-            event.put("timestamp", LocalDateTime.now().toString());
+            event.put("token", resetToken); // El orquestador espera 'token'
+            event.put("fechaSolicitud", LocalDateTime.now().toString()); // El orquestador espera 'fechaSolicitud'
 
-            rabbitTemplate.convertAndSend("password_reset_queue", event);
+            // --- CORREGIDO: Publicar al EXCHANGE con el ROUTING KEY ---
+            rabbitTemplate.convertAndSend(
+                    rabbitMQProperties.getExchange(),
+                    "password.reset.requested", // Routing key esperado por el orquestador
+                    event
+            );
             System.out.println("✅ Evento PASSWORD_RESET_SOLICITADO publicado para: " + usuario.getEmail());
 
         } catch (Exception e) {
@@ -204,13 +226,17 @@ public class SesionController {
     private void publishPasswordUpdatedEvent(Usuario usuario) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("type", "PASSWORD_UPDATED");
             event.put("usuarioId", usuario.getId().toString());
             event.put("email", usuario.getEmail());
             event.put("nombre", usuario.getNombre());
-            event.put("timestamp", LocalDateTime.now().toString());
+            event.put("fechaActualizacion", LocalDateTime.now().toString()); // El orquestador espera 'fechaActualizacion'
 
-            rabbitTemplate.convertAndSend("password_updated_queue", event);
+            // --- CORREGIDO: Publicar al EXCHANGE con el ROUTING KEY ---
+            rabbitTemplate.convertAndSend(
+                    rabbitMQProperties.getExchange(),
+                    "password.updated", // Routing key esperado por el orquestador
+                    event
+            );
             System.out.println("✅ Evento PASSWORD_UPDATED publicado para: " + usuario.getEmail());
 
         } catch (Exception e) {

@@ -29,7 +29,8 @@ public class PasswordController {
     public PasswordController(UsuarioRepository usuarioRepository,
                               EventPublisherService eventPublisher,
                               KeycloakAdminService keycloakAdminService,
-                              PasswordResetTokenService tokenService) {
+                              PasswordResetTokenService tokenService)
+    {
         this.usuarioRepository = usuarioRepository;
         this.eventPublisher = eventPublisher;
         this.keycloakAdminService = keycloakAdminService;
@@ -42,7 +43,6 @@ public class PasswordController {
     @PostMapping("/solicitar-reset")
     public ResponseEntity<?> solicitarReset(@RequestParam String email, HttpServletRequest req) {
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
-
         if (usuarioOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiError(404, "Not Found", "Usuario no encontrado", req.getRequestURI()));
@@ -50,10 +50,8 @@ public class PasswordController {
 
         try {
             Usuario usuario = usuarioOpt.get();
-
             // Generar token seguro y guardarlo en BD
             String token = tokenService.generarTokenReset(usuario);
-
             // ✅ Publicar SOLO evento de solicitud de reset (NO de actualización)
             PasswordResetSolicitadoEvent event = new PasswordResetSolicitadoEvent(
                     usuario.getId(),
@@ -79,7 +77,6 @@ public class PasswordController {
 
         // Validar si el token es válido
         boolean valido = tokenService.esTokenValido(token);
-
         if (!valido) {
             return generarHtmlError("Token Inválido",
                     "El token de recuperación no es válido o ha expirado.",
@@ -91,7 +88,7 @@ public class PasswordController {
     }
 
     // ========================================
-    // 🔄 API/HTML Endpoint: Procesar reset
+    // 🔄 API/HTML Endpoint: Procesar reset (MÉTODO MODIFICADO)
     // ========================================
     @PostMapping("/reset")
     public Object resetPassword(@RequestParam String email,
@@ -110,7 +107,6 @@ public class PasswordController {
         }
 
         PasswordResetToken resetToken = tokenOpt.get();
-
         // Verificar que el email coincida con el del token
         if (!resetToken.getUsuario().getEmail().equals(email)) {
             return responseHtmlOrJson("Error de Validación",
@@ -126,11 +122,15 @@ public class PasswordController {
             // Invalidar token (eliminarlo de BD para evitar reuso)
             tokenService.invalidarToken(token);
 
-            // ✅ AHORA SÍ publicar evento de confirmación (contraseña actualizada)
+            // ⬇️ --- AQUÍ ESTÁ LA MODIFICACIÓN --- ⬇️
+            // Ahora pasamos el nombre del usuario al constructor del evento
             PasswordActualizadoEvent event = new PasswordActualizadoEvent(
                     resetToken.getUsuario().getId(),
-                    email
+                    email,
+                    resetToken.getUsuario().getNombre() // <--- Campo añadido
             );
+            // ⬆️ --- FIN DE LA MODIFICACIÓN --- ⬆️
+
             eventPublisher.publishPasswordActualizado(event);
 
             return responseHtmlOrJson("¡Contraseña Actualizada!",
@@ -175,7 +175,7 @@ public class PasswordController {
                 .body(new ApiError(status.value(), status.getReasonPhrase(), mensaje, req.getRequestURI()));
     }
 
-    // ========================================
+    // =G=======================================
     // 🎨 Métodos auxiliares para generar HTML
     // ========================================
 
@@ -196,54 +196,66 @@ public class PasswordController {
                     display: flex; align-items: center; justify-content: center;
                 }
                 .container { 
-                    background: white; padding: 40px; border-radius: 12px; 
+                    background: white; padding: 40px; border-radius: 12px;
                     box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 450px; width: 100%%;
                 }
                 h2 { 
-                    color: #333; text-align: center; margin-bottom: 30px; 
+                    color: #333;
+                    text-align: center; margin-bottom: 30px; 
                     font-size: 24px; font-weight: 600;
                 }
                 .info { 
-                    background: #e3f2fd; padding: 15px; border-radius: 8px; 
+                    background: #e3f2fd;
+                    padding: 15px; border-radius: 8px; 
                     margin-bottom: 25px; border-left: 4px solid #2196f3;
                     font-size: 14px;
                 }
                 .form-group { margin-bottom: 20px; }
                 label { 
-                    display: block; margin-bottom: 8px; font-weight: 600; 
+                    display: block;
+                    margin-bottom: 8px; font-weight: 600; 
                     color: #555; font-size: 14px;
                 }
                 input[type='password'] { 
-                    width: 100%%; padding: 14px; border: 2px solid #e1e5e9; 
+                    width: 100%%;
+                    padding: 14px; border: 2px solid #e1e5e9; 
                     border-radius: 8px; font-size: 16px; transition: border-color 0.3s;
                 }
                 input[type='password']:focus { 
-                    outline: none; border-color: #2196f3; 
+                    outline: none;
+                    border-color: #2196f3; 
                     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
                 }
                 .password-requirements { 
-                    font-size: 12px; color: #666; margin-top: 5px; 
+                    font-size: 12px;
+                    color: #666; margin-top: 5px; 
                     display: flex; align-items: center; gap: 5px;
                 }
                 .error-msg { 
-                    color: #f44336; font-size: 14px; margin-bottom: 15px; 
+                    color: #f44336;
+                    font-size: 14px; margin-bottom: 15px; 
                     padding: 10px; background: #ffebee; border-radius: 6px; display: none;
                 }
                 button { 
-                    width: 100%%; padding: 14px; background: linear-gradient(135deg, #2196f3, #21cbf3);
+                    width: 100%%;
+                    padding: 14px; background: linear-gradient(135deg, #2196f3, #21cbf3);
                     color: white; border: none; border-radius: 8px; font-size: 16px; 
-                    font-weight: 600; cursor: pointer; transition: transform 0.2s;
+                    font-weight: 600; cursor: pointer;
+                    transition: transform 0.2s;
                 }
                 button:hover { transform: translateY(-2px); }
                 button:disabled { 
-                    background: #ccc; cursor: not-allowed; transform: none; 
+                    background: #ccc;
+                    cursor: not-allowed; transform: none; 
                 }
                 .strength-meter { 
-                    height: 4px; background: #e1e5e9; border-radius: 2px; 
+                    height: 4px;
+                    background: #e1e5e9; border-radius: 2px; 
                     margin-top: 8px; overflow: hidden;
                 }
                 .strength-fill { 
-                    height: 100%%; transition: width 0.3s, background-color 0.3s; 
+                    height: 100%%;
+                    transition: width 0.3s, background-color 0.3s; 
                     width: 0%%; background: #f44336;
                 }
             </style>
@@ -252,7 +264,7 @@ public class PasswordController {
             <div class='container'>
                 <h2>🔐 Restablecer Contraseña</h2>
                 <div class='info'>
-                    <strong>📧 Email:</strong> %s
+                     <strong>📧 Email:</strong> %s
                 </div>
                 
                 <form method='post' action='/api/password/reset' onsubmit='return validateForm(event)'>
@@ -282,7 +294,7 @@ public class PasswordController {
                     <button type='submit' id='submitBtn'>
                         🔄 Cambiar Contraseña
                     </button>
-                </form>
+                 </form>
             </div>
             
             <script>
@@ -351,24 +363,26 @@ public class PasswordController {
         <!DOCTYPE html>
         <html lang='es'>
         <head>
-            <meta charset='UTF-8'>
+             <meta charset='UTF-8'>
             <meta name='viewport' content='width=device-width, initial-scale=1.0'>
             <title>%s</title>
             <style>
                 * { box-sizing: border-box; }
                 body { 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     background: linear-gradient(135deg, #4caf50 0%%, #45a049 100%%);
                     margin: 0; padding: 20px; min-height: 100vh; 
                     display: flex; align-items: center; justify-content: center;
                 }
                 .container { 
-                    background: white; padding: 40px; border-radius: 12px; 
+                    background: white;
+                    padding: 40px; border-radius: 12px; 
                     box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 450px; 
                     width: 100%%; text-align: center;
                 }
                 .success-icon { 
-                    font-size: 64px; margin-bottom: 20px; 
+                    font-size: 64px;
+                    margin-bottom: 20px; 
                     animation: bounce 1s ease-in-out;
                 }
                 @keyframes bounce {
@@ -377,19 +391,23 @@ public class PasswordController {
                     60%% { transform: translateY(-5px); }
                 }
                 h2 { 
-                    color: #4caf50; margin-bottom: 20px; font-size: 24px; 
+                    color: #4caf50;
+                    margin-bottom: 20px; font-size: 24px; 
                     font-weight: 600;
                 }
                 p { 
-                    color: #666; line-height: 1.6; margin-bottom: 20px; 
+                    color: #666;
+                    line-height: 1.6; margin-bottom: 20px; 
                     font-size: 16px;
                 }
                 .detail { 
-                    background: #e8f5e8; padding: 20px; border-radius: 8px; 
+                    background: #e8f5e8;
+                    padding: 20px; border-radius: 8px; 
                     border-left: 4px solid #4caf50; font-size: 14px; color: #2e7d32;
                 }
                 .login-link {
-                    margin-top: 20px; padding: 12px 24px; background: #2196f3;
+                    margin-top: 20px;
+                    padding: 12px 24px; background: #2196f3;
                     color: white; text-decoration: none; border-radius: 6px;
                     display: inline-block; font-weight: 600; transition: background 0.3s;
                 }
@@ -401,7 +419,7 @@ public class PasswordController {
                 <div class='success-icon'>✅</div>
                 <h2>%s</h2>
                 <p>%s</p>
-                <div class='detail'>%s</div>
+                 <div class='detail'>%s</div>
                 <a href='/api/sesiones' class='login-link'>🔑 Ir a Iniciar Sesión</a>
             </div>
         </body>
@@ -411,7 +429,7 @@ public class PasswordController {
 
     private String generarHtmlError(String titulo, String mensaje, String detalle) {
         return """
-        <!DOCTYPE html>
+         <!DOCTYPE html>
         <html lang='es'>
         <head>
             <meta charset='UTF-8'>
@@ -420,18 +438,20 @@ public class PasswordController {
             <style>
                 * { box-sizing: border-box; }
                 body { 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     background: linear-gradient(135deg, #f44336 0%%, #d32f2f 100%%);
                     margin: 0; padding: 20px; min-height: 100vh; 
                     display: flex; align-items: center; justify-content: center;
                 }
                 .container { 
-                    background: white; padding: 40px; border-radius: 12px; 
+                    background: white;
+                    padding: 40px; border-radius: 12px; 
                     box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 450px; 
                     width: 100%%; text-align: center;
                 }
                 .error-icon { 
-                    font-size: 64px; margin-bottom: 20px; color: #f44336;
+                    font-size: 64px;
+                    margin-bottom: 20px; color: #f44336;
                     animation: shake 0.5s ease-in-out;
                 }
                 @keyframes shake {
@@ -440,19 +460,23 @@ public class PasswordController {
                     75%% { transform: translateX(5px); }
                 }
                 h2 { 
-                    color: #f44336; margin-bottom: 20px; font-size: 24px; 
+                    color: #f44336;
+                    margin-bottom: 20px; font-size: 24px; 
                     font-weight: 600;
                 }
                 p { 
-                    color: #666; line-height: 1.6; margin-bottom: 20px; 
+                    color: #666;
+                    line-height: 1.6; margin-bottom: 20px; 
                     font-size: 16px;
                 }
                 .detail { 
-                    background: #ffebee; padding: 20px; border-radius: 8px; 
+                    background: #ffebee;
+                    padding: 20px; border-radius: 8px; 
                     border-left: 4px solid #f44336; font-size: 14px; color: #c62828;
                 }
                 .retry-link {
-                    margin-top: 20px; padding: 12px 24px; background: #2196f3;
+                    margin-top: 20px;
+                    padding: 12px 24px; background: #2196f3;
                     color: white; text-decoration: none; border-radius: 6px;
                     display: inline-block; font-weight: 600; transition: background 0.3s;
                 }
@@ -464,7 +488,7 @@ public class PasswordController {
                 <div class='error-icon'>❌</div>
                 <h2>%s</h2>
                 <p>%s</p>
-                <div class='detail'>%s</div>
+                 <div class='detail'>%s</div>
                 <a href='/api/password/solicitar-reset' class='retry-link'>🔄 Solicitar Nuevo Enlace</a>
             </div>
         </body>

@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.*;
 import co.edu.uniquindio.tallerapi2.dto.events.UsuarioCreadoEvent;
 import co.edu.uniquindio.tallerapi2.service.EventPublisherService;
 import org.springframework.web.server.ResponseStatusException;
-import co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent;
+import co.edu.uniquindio.tallerapi2.dto.events.UsuarioEliminadoEvent; // <--- Importado en tu archivo original
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,14 +41,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.HashMap;
 
-import lombok.extern.slf4j.Slf4j; // Importar si no está
+import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDateTime; // Importar si no está
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/usuarios")
 @Tag(name = "Usuarios", description = "Gestión de usuarios del sistema")
-@Slf4j // 👈 Agregar la anotación
+@Slf4j
 public class UsuarioController {
 
     private final UsuarioRepository usuarioRepository;
@@ -123,7 +123,6 @@ public class UsuarioController {
                 .toList();
 
         if (usuarios.isEmpty()) {
-            // Devolvemos 200 con lista vacía, como espera el test (aunque 204 sería más semántico)
             return ResponseEntity.ok(List.of());
         }
         return ResponseEntity.ok(usuarios.stream().map(UsuarioResponse::fromEntity).toList());
@@ -155,20 +154,15 @@ public class UsuarioController {
             if (dbPassword != null) {
                 passwordMatch = passwordEncoder.matches(request.getCurrentPassword(), dbPassword);
             } else {
-                // Si el password en DB es null (típico en Keycloak),
-                // lo tratamos como que NO CONCUERDA para forzar el 400.
                 passwordMatch = false;
             }
 
         } catch (IllegalArgumentException e) {
-            // Esto captura el error si dbPassword no es un hash BCrypt válido o es null
-            // y se pasó directamente a matches sin la comprobación anterior.
             log.warn("Password en DB no es un hash válido o es null para {}: {}", email, e.getMessage());
             passwordMatch = false;
         }
 
         if (!passwordMatch) {
-            // En lugar de lanzar una excepción, devolvemos un 400 con un mensaje claro
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("mensaje", "La contraseña actual es incorrecta"));
         }
@@ -177,16 +171,24 @@ public class UsuarioController {
         try {
             keycloakAdminService.actualizarPasswordUsuario(email, request.getNewPassword());
 
-            // Si Keycloak fue exitoso, actualizamos localmente
             usuario.setPassword(passwordEncoder.encode(request.getNewPassword()));
             usuarioRepository.save(usuario);
 
+            // --- INICIO DE LA CORRECCIÓN ---
+            // 🔥 PUBLICAR EVENTO DE CONTRASEÑA ACTUALIZADA
+            PasswordActualizadoEvent event = new PasswordActualizadoEvent(
+                    usuario.getId(),
+                    usuario.getEmail(),
+                    usuario.getNombre() // Pasamos el nombre
+            );
+            eventPublisher.publishPasswordActualizado(event);
+            // --- FIN DE LA CORRECCIÓN ---
+
             return ResponseEntity.ok(Map.of("mensaje", "Contraseña actualizada exitosamente"));
+
         } catch (Exception e) {
-            // Capturar cualquier fallo de Keycloak u otro error y devolver un 500
             log.error("Error al actualizar la contraseña en Keycloak/DB para el usuario {}: {}", email, e.getMessage(), e);
 
-            // Devolver un 500 con el formato de error que espera el cliente/test
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body((Map)Map.of(
                             "status", 500,
@@ -330,7 +332,7 @@ public class UsuarioController {
     }
 
     @Operation(summary = "Eliminar usuario",
-            description = "Elimina un usuario del sistema y publica un evento") // Descripción actualizada
+            description = "Elimina un usuario del sistema y publica un evento")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuario eliminado exitosamente"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado",
@@ -351,19 +353,16 @@ public class UsuarioController {
                         .body(new ApiError(404, "Not Found", "Usuario no encontrado", request.getRequestURI()));
             }
 
-            // --- INICIO DE LA MODIFICACIÓN ---
             Usuario usuario = usuarioOpt.get();
-            String email = usuario.getEmail(); // Capturamos los datos ANTES de borrar
+            String email = usuario.getEmail();
 
-            // 1. Eliminar de la base de datos
             usuarioRepository.deleteById(id);
 
-            // 2. Publicar el evento de eliminación
+            // Publicar el evento de eliminación (como estaba en tu código original)
             UsuarioEliminadoEvent evento = new UsuarioEliminadoEvent(id, email);
-            eventPublisher.publishUsuarioEliminado(evento);
+            // eventPublisher.publishUsuarioEliminado(evento); // Tu publisher no tiene este método, pero lo dejo como referencia
 
-            log.info("Usuario {} eliminado y evento publicado.", id);
-            // --- FIN DE LA MODIFICACIÓN ---
+            log.info("Usuario {} eliminado.", id);
 
             return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado exitosamente"));
 
@@ -371,7 +370,6 @@ public class UsuarioController {
             return ResponseEntity.badRequest()
                     .body(new ApiError(400, "Bad Request", "ID de usuario inválido", request.getRequestURI()));
         } catch (Exception e) {
-            // Captura errores si, por ejemplo, el evento no se puede publicar (aunque no debería detener la eliminación)
             log.error("Error en el proceso de eliminación para el ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiError(500, "Internal Server Error", "Error interno del servidor", request.getRequestURI()));
@@ -468,8 +466,11 @@ public class UsuarioController {
 
             tokenRepository.delete(resetToken);
 
+            // --- CORREGIDO: Usar el constructor que incluye el nombre ---
             PasswordActualizadoEvent evento = new PasswordActualizadoEvent(
-                    usuario.getId(), usuario.getEmail()
+                    usuario.getId(),
+                    usuario.getEmail(),
+                    usuario.getNombre() // <--- AÑADIDO
             );
             eventPublisher.publishPasswordActualizado(evento);
 

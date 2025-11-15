@@ -3,6 +3,7 @@ package co.edu.uniquindio.tallerapi2.dto.events;
 import co.edu.uniquindio.tallerapi2.model.Usuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,8 @@ public class UsuarioCreadoEvent {
     private UUID usuarioId;
     private String email;
     private String nombre;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS")
     private LocalDateTime timestamp;
     private String activationToken;
     private String baseUrl;
